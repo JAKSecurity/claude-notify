@@ -6,11 +6,11 @@ Usage:
     python scripts/send_discord.py --file data/briefings/2026-03-15.md
     python scripts/send_discord.py --title "Morning Briefing" --file data/briefings/2026-03-15.md
     python scripts/send_discord.py --title "Briefing" --file briefing.md --attach briefing.mp3
-    python scripts/send_discord.py --webhook-name DISCORD_SPECTRA_WEBHOOK --title "SPECTRA" --file report.md
+    python scripts/send_discord.py --webhook-name DISCORD_ALT_WEBHOOK --title "Report" --file report.md
 
 Secrets (from OS keyring):
     DISCORD_WEBHOOK          - Default Discord webhook URL
-    DISCORD_SPECTRA_WEBHOOK  - SPECTRA channel webhook URL (optional)
+    (additional webhooks can be stored with custom names)
 """
 
 import argparse
