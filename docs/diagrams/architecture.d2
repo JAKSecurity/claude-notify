@@ -1,0 +1,97 @@
+# claude-notify — notification and delivery toolkit architecture.
+# Caller fans out through four delivery scripts; all share secret_store.py
+# for credential and config resolution before reaching external endpoints.
+
+...@~/.claude/skills/d2-diagram/assets/jak-dark
+
+direction: right
+
+caller: Claude Code\n/ User Script {
+  class: user
+  icon: https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/anthropic.svg
+}
+
+scripts: Delivery Scripts {
+  class: panel
+
+  discord_s: send_discord.py {
+    class: service
+    icon: https://api.iconify.design/tabler/message-circle.svg
+  }
+
+  email_s: send_email.py {
+    class: service
+    icon: https://api.iconify.design/tabler/mail.svg
+  }
+
+  push_s: send_push.py {
+    class: service
+    icon: https://api.iconify.design/tabler/bell.svg
+  }
+
+  tts_s: generate_tts.py {
+    class: service
+    icon: https://api.iconify.design/tabler/volume.svg
+  }
+}
+
+secret_store: secret_store.py\nshared module {
+  class: auth
+  icon: https://api.iconify.design/tabler/key.svg
+}
+
+config: Secrets + Config {
+  class: panel
+
+  keyring: OS Keyring\nWindows Credential Manager {
+    class: external
+    icon: https://api.iconify.design/tabler/lock.svg
+  }
+
+  dotenv: .env file\nnon-secret config {
+    class: data
+    icon: https://api.iconify.design/tabler/file-code.svg
+  }
+}
+
+endpoints: External Endpoints {
+  class: panel
+
+  discord_e: Discord Webhook {
+    class: external
+    icon: https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/discord.svg
+  }
+
+  smtp: SMTP Server {
+    class: external
+    icon: https://api.iconify.design/tabler/mail-forward.svg
+  }
+
+  ntfy: ntfy.sh {
+    class: external
+    icon: https://api.iconify.design/tabler/broadcast.svg
+  }
+
+  edge_tts: Edge TTS Service {
+    class: external
+    icon: https://api.iconify.design/tabler/speakerphone.svg
+  }
+}
+
+caller -> scripts.discord_s: --title --file --attach
+caller -> scripts.email_s: --subject --body-file
+caller -> scripts.push_s: message / priority
+caller -> scripts.tts_s: markdown file
+
+scripts.discord_s -> secret_store: get_secret\nget_config
+scripts.email_s -> secret_store: get_secret\nget_config
+scripts.push_s -> secret_store: get_secret\nget_config
+scripts.tts_s -> secret_store: get_config
+
+secret_store -> config.keyring: keyring.get_password
+secret_store -> config.dotenv: parse .env
+
+scripts.discord_s -> endpoints.discord_e: POST webhook
+scripts.email_s -> endpoints.smtp: SMTP AUTH + SEND
+scripts.push_s -> endpoints.ntfy: HTTP PUT
+scripts.tts_s -> endpoints.edge_tts: edge-tts synthesis

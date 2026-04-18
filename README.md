@@ -50,6 +50,10 @@ python scripts/generate_tts.py briefing.md                    # outputs briefing
 python scripts/generate_tts.py briefing.md --voice en-US-GuyNeural
 ```
 
+## System Overview
+
+![Architecture diagram showing claude-notify's fan-out delivery pipeline](docs/diagrams/architecture.svg)
+
 ## Architecture
 
 ```
