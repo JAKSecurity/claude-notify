@@ -66,15 +66,74 @@ def send_discord(content, webhook_url):
 
 
 def send_attachment(file_path, webhook_url):
-    """Send a file attachment to Discord via webhook."""
+    """Send a file attachment to Discord via webhook.
+
+    Verifies that the byte count Discord stored matches the local file size by
+    requesting the message object back via `?wait=true` and inspecting the
+    `attachments[].size` field. Mismatch is logged and the function returns
+    False so the caller can alert.
+
+    Why: AI Assistant ticket [051] — briefing MP3s were reportedly cut off on
+    the Discord side even though on-disk files were complete. Without this
+    check, a silent Discord-side truncation (size-limit proxy, network hiccup)
+    looks identical to a clean upload because the webhook still returns 200.
+    """
+    local_size = file_path.stat().st_size
+    # wait=true makes Discord return the created message (including
+    # attachment metadata) instead of a bare 204. We need that metadata to
+    # verify size.
+    sep = "&" if "?" in webhook_url else "?"
+    verify_url = f"{webhook_url}{sep}wait=true"
+
     with open(file_path, "rb") as f:
         resp = requests.post(
-            webhook_url,
+            verify_url,
             files={"file": (file_path.name, f)},
         )
     if resp.status_code not in (200, 204):
         print(f"Discord attachment error: {resp.status_code} {resp.text}", file=sys.stderr)
         return False
+
+    # Parse response and verify stored size. Any parse error is logged but
+    # does NOT fail the caller — the upload itself succeeded per 200/204.
+    try:
+        msg = resp.json()
+        attachments = msg.get("attachments") or []
+        if not attachments:
+            print(
+                f"[discord][{file_path.name}] upload OK but no attachments in "
+                f"response; cannot verify size",
+                file=sys.stderr,
+            )
+            return True
+        stored_size = attachments[0].get("size")
+        if stored_size is None:
+            print(
+                f"[discord][{file_path.name}] upload OK but attachment missing "
+                f"size field; cannot verify",
+                file=sys.stderr,
+            )
+            return True
+        if stored_size != local_size:
+            delta = local_size - stored_size
+            pct = 100.0 * stored_size / local_size if local_size else 0
+            print(
+                f"[discord][{file_path.name}] SIZE MISMATCH — "
+                f"local={local_size} stored={stored_size} "
+                f"delta={delta} ({pct:.1f}% uploaded)",
+                file=sys.stderr,
+            )
+            return False
+        print(
+            f"[discord][{file_path.name}] upload verified: {stored_size} bytes",
+            file=sys.stderr,
+        )
+    except Exception as e:
+        print(
+            f"[discord][{file_path.name}] verification parse error: {e!r}; "
+            f"not failing (upload status was {resp.status_code})",
+            file=sys.stderr,
+        )
     return True
 
 
